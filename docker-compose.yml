@@ -1,0 +1,99 @@
+name: voting-system
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: voting-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: votingdb
+      MYSQL_USER: voteuser
+      MYSQL_PASSWORD: votepassword
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - voting_network
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:latest
+    container_name: voting-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - voting_network
+    restart: always
+    command: redis-server --requirepass redispassword
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: voting-backend
+    ports:
+      - "8090:8090"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: voteuser
+      DB_PASSWORD: votepassword
+      DB_NAME: votingdb
+      
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: redispassword
+      REDIS_DB: 0
+      REDIS_MOCK: false
+      
+      ROCKETMQ_MOCK: true
+      
+      GIN_MODE: release
+      LOG_LEVEL: info
+      SERVER_PORT: 8090
+      API_PREFIX: /api
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - voting_network
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: voting-frontend
+    ports:
+      - "80:80"
+    environment:
+      NODE_ENV: production
+      REACT_APP_API_BASE_URL: http://localhost:8090
+    depends_on:
+      - backend
+    networks:
+      - voting_network
+    restart: on-failure
+
+networks:
+  voting_network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data: 

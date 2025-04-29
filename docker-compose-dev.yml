@@ -1,0 +1,96 @@
+name: voting-system-dev
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: voting-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: votingdb
+      MYSQL_USER: voteuser
+      MYSQL_PASSWORD: votepassword
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql-data-dev:/var/lib/mysql
+    networks:
+      - voting_network_dev
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:latest
+    container_name: voting-redis-dev
+    ports:
+      - "16379:6379"
+    volumes:
+      - redis-data-dev:/data
+    networks:
+      - voting_network_dev
+    restart: always
+    command: redis-server --requirepass redispassword
+
+# 这些服务在开发过程中通常不会以容器方式运行，而是直接在本地运行
+# 因此下面的服务配置仅做参考，可以视需要取消注释
+
+#  backend-dev:
+#    build:
+#      context: ./backend
+#      dockerfile: Dockerfile
+#    container_name: voting-backend-dev
+#    ports:
+#      - "8090:8090"
+#    environment:
+#      DB_HOST: mysql
+#      DB_PORT: 3306
+#      DB_USER: voteuser
+#      DB_PASSWORD: votepassword
+#      DB_NAME: votingdb
+#      
+#      REDIS_ADDR: redis:6379
+#      REDIS_PASSWORD: redispassword
+#      REDIS_DB: 0
+#      REDIS_MOCK: false
+#      
+#      GIN_MODE: debug
+#      LOG_LEVEL: debug
+#      SERVER_PORT: 8090
+#      API_PREFIX: /api
+#    volumes:
+#      - ./backend:/app
+#      - ./logs:/app/logs
+#    depends_on:
+#      - mysql
+#      - redis
+#    networks:
+#      - voting_network_dev
+#    restart: on-failure
+
+#  frontend-dev:
+#    build:
+#      context: ./frontend
+#      dockerfile: Dockerfile.dev
+#    container_name: voting-frontend-dev
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      NODE_ENV: development
+#      REACT_APP_API_BASE_URL: http://localhost:8090
+#    volumes:
+#      - ./frontend:/app
+#      - frontend-node-modules:/app/node_modules
+#    command: ["npm", "start"]
+#    depends_on:
+#      - backend-dev
+#    networks:
+#      - voting_network_dev
+#    restart: on-failure
+
+networks:
+  voting_network_dev:
+    driver: bridge
+
+volumes:
+  mysql-data-dev:
+  redis-data-dev:
+  frontend-node-modules: 
